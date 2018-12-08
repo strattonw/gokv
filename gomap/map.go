@@ -2,6 +2,7 @@ package gomap
 
 import (
 	"errors"
+	"github.com/philippgille/gokv/marshal"
 	"sync"
 
 	"github.com/philippgille/gokv/util"
@@ -11,27 +12,15 @@ import (
 type Store struct {
 	m             map[string][]byte
 	lock          *sync.RWMutex
-	marshalFormat MarshalFormat
+	marshalFormat marshal.Format
 }
 
 // Set stores the given value for the given key.
 // Values are automatically marshalled to JSON or gob (depending on the configuration).
 // The key must not be "" and the value must not be nil.
 func (m Store) Set(k string, v interface{}) error {
-	if err := util.CheckKeyAndValue(k, v); err != nil {
-		return err
-	}
+	data, err := marshal.Marshal(k, v, m.marshalFormat)
 
-	var data []byte
-	var err error
-	switch m.marshalFormat {
-	case JSON:
-		data, err = util.ToJSON(v)
-	case Gob:
-		data, err = util.ToGob(v)
-	default:
-		err = errors.New("The store seems to be configured with a marshal format that's not implemented yet")
-	}
 	if err != nil {
 		return err
 	}
@@ -64,9 +53,9 @@ func (m Store) Get(k string, v interface{}) (found bool, err error) {
 	}
 
 	switch m.marshalFormat {
-	case JSON:
+	case marshal.JSON:
 		return true, util.FromJSON(data, v)
-	case Gob:
+	case marshal.Gob:
 		return true, util.FromGob(data, v)
 	default:
 		return true, errors.New("The store seems to be configured with a marshal format that's not implemented yet")
@@ -95,21 +84,12 @@ func (m Store) Close() error {
 	return nil
 }
 
-// MarshalFormat is an enum for the available (un-)marshal formats of this gokv.Store implementation.
-type MarshalFormat int
-
-const (
-	// JSON is the MarshalFormat for (un-)marshalling to/from JSON
-	JSON MarshalFormat = iota
-	// Gob is the MarshalFormat for (un-)marshalling to/from gob
-	Gob
-)
 
 // Options are the options for the Go map store.
 type Options struct {
 	// (Un-)marshal format.
 	// Optional (JSON by default).
-	MarshalFormat MarshalFormat
+	MarshalFormat marshal.Format
 }
 
 // DefaultOptions is an Options object with default values.

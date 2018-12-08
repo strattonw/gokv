@@ -2,6 +2,7 @@ package redis
 
 import (
 	"errors"
+	"github.com/philippgille/gokv/marshal"
 
 	"github.com/go-redis/redis"
 
@@ -11,31 +12,15 @@ import (
 // Client is a gokv.Store implementation for Redis.
 type Client struct {
 	c             *redis.Client
-	marshalFormat MarshalFormat
+	marshalFormat marshal.Format
 }
 
 // Set stores the given value for the given key.
 // Values are automatically marshalled to JSON or gob (depending on the configuration).
 // The key must not be "" and the value must not be nil.
 func (c Client) Set(k string, v interface{}) error {
-	if err := util.CheckKeyAndValue(k, v); err != nil {
-		return err
-	}
+	data, err := marshal.Marshal(k, v, c.marshalFormat)
 
-	// First turn the passed object into something that Redis can handle
-	// (the Set method takes an interface{}, but the Get method only returns a string,
-	// so it can be assumed that the interface{} parameter type is only for convenience
-	// for a couple of builtin types like int etc.).
-	var data []byte
-	var err error
-	switch c.marshalFormat {
-	case JSON:
-		data, err = util.ToJSON(v)
-	case Gob:
-		data, err = util.ToGob(v)
-	default:
-		err = errors.New("The store seems to be configured with a marshal format that's not implemented yet")
-	}
 	if err != nil {
 		return err
 	}
@@ -67,9 +52,9 @@ func (c Client) Get(k string, v interface{}) (found bool, err error) {
 	}
 
 	switch c.marshalFormat {
-	case JSON:
+	case marshal.JSON:
 		return true, util.FromJSON([]byte(data), v)
-	case Gob:
+	case marshal.Gob:
 		return true, util.FromGob([]byte(data), v)
 	default:
 		return true, errors.New("The store seems to be configured with a marshal format that's not implemented yet")
@@ -94,16 +79,6 @@ func (c Client) Close() error {
 	return c.c.Close()
 }
 
-// MarshalFormat is an enum for the available (un-)marshal formats of this gokv.Store implementation.
-type MarshalFormat int
-
-const (
-	// JSON is the MarshalFormat for (un-)marshalling to/from JSON
-	JSON MarshalFormat = iota
-	// Gob is the MarshalFormat for (un-)marshalling to/from gob
-	Gob
-)
-
 // Options are the options for the Redis client.
 type Options struct {
 	// Address of the Redis server, including the port.
@@ -117,7 +92,7 @@ type Options struct {
 	DB int
 	// (Un-)marshal format.
 	// Optional (JSON by default).
-	MarshalFormat MarshalFormat
+	MarshalFormat marshal.Format
 }
 
 // DefaultOptions is an Options object with default values.
