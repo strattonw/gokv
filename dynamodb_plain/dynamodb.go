@@ -1,4 +1,4 @@
-package dynamodb
+package dynamodb_plain
 
 import (
 	"context"
@@ -44,7 +44,7 @@ func (c Client) Set(k string, v interface{}) error {
 		S: &k,
 	}
 	item[valAttrName] = &awsdynamodb.AttributeValue{
-		B: data,
+		S: data,
 	}
 	putItemInput := awsdynamodb.PutItemInput{
 		TableName: &c.tableName,

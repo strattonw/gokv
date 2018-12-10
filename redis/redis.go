@@ -13,13 +13,14 @@ import (
 type Client struct {
 	c             *redis.Client
 	marshalFormat marshal.Format
+	marshalRegister marshal.Register
 }
 
 // Set stores the given value for the given key.
 // Values are automatically marshalled to JSON or gob (depending on the configuration).
 // The key must not be "" and the value must not be nil.
 func (c Client) Set(k string, v interface{}) error {
-	data, err := marshal.Marshal(k, v, c.marshalFormat)
+	data, err := c.marshalRegister.Marshal(k, v, c.marshalFormat)
 
 	if err != nil {
 		return err
@@ -93,19 +94,23 @@ type Options struct {
 	// (Un-)marshal format.
 	// Optional (JSON by default).
 	MarshalFormat marshal.Format
+	MarshalRegister marshal.Register
 }
 
 // DefaultOptions is an Options object with default values.
 // Address: "localhost:6379", Password: "", DB: 0, MarshalFormat: JSON
 var DefaultOptions = Options{
 	Address: "localhost:6379",
+	MarshalRegister: marshal.DefaultMarshalRegister,
 	// No need to set Password, DB or MarshalFormat
 	// because their Go zero values are fine for that.
 }
 
 // NewClient creates a new Redis client.
 func NewClient(options Options) (Client, error) {
-	result := Client{}
+	result := Client{
+		marshalRegister: DefaultOptions.MarshalRegister,
+	}
 
 	// Set default values
 	if options.Address == "" {
